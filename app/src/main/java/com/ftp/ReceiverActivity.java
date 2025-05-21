@@ -115,18 +115,24 @@ public class ReceiverActivity extends AppCompatActivity {
         try {
             for (java.util.Enumeration<java.net.NetworkInterface> en = java.net.NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
                 java.net.NetworkInterface intf = en.nextElement();
-                for (java.util.Enumeration<java.net.InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
-                    java.net.InetAddress inetAddress = enumIpAddr.nextElement();
-                    if (!inetAddress.isLoopbackAddress() && inetAddress instanceof java.net.Inet4Address) {
-                        return inetAddress.getHostAddress();
+
+                // Look for the Wi-Fi interface (usually named "wlan0" on most devices)
+                if (intf.getName().equalsIgnoreCase("wlan0")) {
+                    for (java.util.Enumeration<java.net.InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+                        java.net.InetAddress inetAddress = enumIpAddr.nextElement();
+                        // Only return IPv4 addresses and exclude loopback addresses
+                        if (inetAddress instanceof java.net.Inet4Address && !inetAddress.isLoopbackAddress()) {
+                            return inetAddress.getHostAddress();  // This will be something like 192.168.x.x
+                        }
                     }
                 }
             }
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return "Unavailable";
+        return "Unavailable";  // Return "Unavailable" if no IP is found
     }
+
 
     private void generateQRCode(String ip) {
         try {
