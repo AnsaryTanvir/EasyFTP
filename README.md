@@ -14,7 +14,7 @@
 1. **Connect both devices** to the same Wi-Fi or mobile hotspot.
 2. **Receiver** opens the app and taps on `Receive`. It starts an FTP server and shows a QR code with its local IP address.
 3. **Sender** taps on `Send`, scans the QR code, selects files, and sends them via FTP.
-4. The **receiver** can browse and save incoming files via any FTP client (or integrated view, depending on your version).
+4. The **receiver** can browse and save incoming files.
 5. The files are to be stored in the following directory: Android/data/com.ftp/files
 
 ## 📱 Screenshots
