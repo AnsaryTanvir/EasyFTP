@@ -1,41 +1,24 @@
 package com.ftp;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.StrictMode;
 import android.provider.OpenableColumns;
-import android.renderscript.ScriptGroup;
 import android.view.View;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.TextView;
 import android.widget.Toast;
-
-import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
-
 import com.ftp.databinding.ActivitySenderBinding;
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.io.DataOutputStream;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.ServerSocket;
 import java.net.Socket;
 
 public class SenderActivity extends AppCompatActivity {
 
     private ActivitySenderBinding binding;
-
     private static final int PICK_FILE = 1;
     private Uri fileUri;
     private long totalBytes = 0;
@@ -44,7 +27,6 @@ public class SenderActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         binding = ActivitySenderBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
@@ -67,7 +49,6 @@ public class SenderActivity extends AppCompatActivity {
             integrator.initiateScan();
         });
 
-        // Set up toolbar navigation
         binding.topAppBar.setNavigationOnClickListener(v -> finish());
     }
 
@@ -82,7 +63,7 @@ public class SenderActivity extends AppCompatActivity {
         IntentResult result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data);
         if (result != null) {
             if (result.getContents() != null) {
-                binding.edittextIp.setText(result.getContents()); // IP from QR
+                binding.edittextIp.setText(result.getContents());
             } else {
                 Toast.makeText(this, "Cancelled", Toast.LENGTH_SHORT).show();
             }
@@ -102,55 +83,33 @@ public class SenderActivity extends AppCompatActivity {
             try {
                 runOnUiThread(() -> binding.progressCard.setVisibility(View.VISIBLE));
 
-                // Get file size correctly
-                try {
-                    totalBytes = getContentResolver()
-                            .openFileDescriptor(fileUri, "r")
-                            .getStatSize();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    runOnUiThread(() -> {
-                        Toast.makeText(this, "Failed to get file size", Toast.LENGTH_SHORT).show();
-                        binding.progressCard.setVisibility(View.GONE);
-                    });
-                    return;
-                }
-
+                totalBytes = getContentResolver().openFileDescriptor(fileUri, "r").getStatSize();
                 sentBytes = 0;
                 updateProgress(0);
 
                 Socket socket = new Socket(ip, 8988);
-                OutputStream os = socket.getOutputStream();
+                DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
                 InputStream fis = getContentResolver().openInputStream(fileUri);
-
                 String fileName = getFileName(fileUri);
-                if (fileName == null) {
-                    runOnUiThread(() -> {
-                        Toast.makeText(this, "Unable to get file name.", Toast.LENGTH_SHORT).show();
-                        binding.progressCard.setVisibility(View.GONE);
-                    });
-                    return;
-                }
 
-                runOnUiThread(() -> {
-                    binding.tvFileName.setText(fileName);
-                });
+                runOnUiThread(() -> binding.tvFileName.setText(fileName));
 
-                // Send file name and file size separated by new lines
-                os.write((fileName + "\n").getBytes());
-                os.write((totalBytes + "\n").getBytes());
+                // Send metadata
+                dos.writeUTF(fileName);
+                dos.writeLong(totalBytes);
 
+                // Send file data
                 byte[] buffer = new byte[4096];
                 int len;
                 while ((len = fis.read(buffer)) > 0) {
-                    os.write(buffer, 0, len);
+                    dos.write(buffer, 0, len);
                     sentBytes += len;
                     int progress = (int) ((sentBytes * 100) / totalBytes);
                     updateProgress(progress);
                 }
 
                 fis.close();
-                os.close();
+                dos.close();
                 socket.close();
 
                 runOnUiThread(() -> {
@@ -168,7 +127,6 @@ public class SenderActivity extends AppCompatActivity {
         }).start();
     }
 
-
     private void updateProgress(int progress) {
         runOnUiThread(() -> {
             binding.progressBar.setProgress(progress);
@@ -176,7 +134,6 @@ public class SenderActivity extends AppCompatActivity {
         });
     }
 
-    // Utility method to extract file name from URI
     private String getFileName(Uri uri) {
         String result = null;
         if (uri.getScheme().equals("content")) {
